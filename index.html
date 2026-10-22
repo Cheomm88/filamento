@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Filamento: dibujas música con luz, a un brazo de distancia. Experiencia VR para Meta Quest 3 con hand tracking." />
+    <meta name="theme-color" content="#000000" />
+    <title>Filamento</title>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <main id="landing">
+      <h1>FILAMENTO</h1>
+      <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
+      <p class="line">Coloca luz en la oscuridad. Cuando dos piezas se acercan, la música las une.</p>
+      <button id="enter" disabled>Entrar en VR</button>
+      <p class="note">Usa auriculares · Solo con las manos · Sentado</p>
+      <p id="status"></p>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
