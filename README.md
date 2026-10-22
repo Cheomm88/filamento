@@ -23,10 +23,13 @@ Después del primer bucle cerrado, Filamento se convierte en un instrumento para
 
 - **La fuente:** bajo el arco aparece una fila de siluetas apagadas, una por forma. Pellizca una para sacar una pieza nueva; puedes repetir formas (hasta 32 piezas en total). Suelta una pieza sobre la fuente para retirarla.
 - **Guardar un bucle:** agarra un bucle cerrado por su hilo y súbelo. Se encoge mientras sube y, si lo sueltas arriba, queda guardado en miniatura en la **cúpula**, sobre tu cabeza y al alcance del brazo. Sigue sonando y deja libre el área de trabajo para el siguiente bucle (caben 11).
+  - *Cómo se descubre:* los huecos libres de la cúpula se marcan con círculos diminutos. Hasta que guardas tu primer bucle, una silueta fantasma del bucle sube sola hasta un hueco cada pocos segundos. Mientras subes uno, se ilumina el hueco donde caerá.
 - **Arreglar:** un pellizco corto sobre un bucle guardado lo silencia o lo reactiva. Así haces estrofa, estribillo y puente activando y desactivando capas.
 - **Editar:** baja un bucle guardado al área de trabajo y recupera su tamaño. Como la altura es la nota, al moverlo arriba o abajo se transpone.
 - **Todo cuadra en compases:** la duración de cada bucle se redondea a medios compases (8 semicorcheas) y empieza en el siguiente medio compás. Cualquier combinación de bucles suena como un tema.
-- **Compartir:** el tema (formas, notas, ritmo, silencios) se guarda en la URL (`#t=…`). En pantalla aparece el botón **Compartir tema**; en VR aparece en la página de entrada al salir. Quien abre el enlace escucha tu tema en VR o en el móvil y puede seguir componiendo.
+- **Compartir:** el tema (formas, notas, ritmo, silencios) se guarda en la URL (`#t=…`). Quien abre el enlace escucha tu tema en VR o en el móvil y puede seguir componiendo.
+  - *En pantalla:* botón **Compartir tema** arriba a la derecha.
+  - *En VR:* cuando hay algún bucle guardado aparece una **puerta** (un cuadrado hueco) a la izquierda de la cúpula. Mantén el pellizco sobre ella hasta que se rellene y vuelves a la página de entrada, que muestra un **código QR**, **Copiar enlace** y **Compartir**. También se sale con el botón Meta del Quest.
 
 ## Controles
 
@@ -37,6 +40,7 @@ Después del primer bucle cerrado, Filamento se convierte en un instrumento para
 | Soltar | Abrir el pinch | Soltar el gatillo |
 | Mover un bucle entero | Pinch sobre su hilo | Gatillo sobre su hilo |
 | Silenciar o reactivar un bucle guardado | Pinch corto sobre él | Clic corto de gatillo |
+| Salir para compartir | Mantener pinch sobre la puerta | Mantener gatillo sobre la puerta |
 | Reset | Juntar las palmas abiertas 1,5 s | Mantener ambos botones de agarre 1,5 s |
 
 El primer reset limpia el área de trabajo y deja sonando los bucles guardados. Un segundo reset borra también el tema.
@@ -96,6 +100,7 @@ src/
   touch.ts       Modo pantalla: cámara y espacio de juego adaptados a la pantalla, toques/ratón, giroscopio
   onboarding.ts  Título → pieza que respira → despliegue en arco
   dispenser.ts   Fuente de piezas (siluetas para sacar y retirar piezas)
+  dome.ts        Guías de la cúpula: huecos libres, pista fantasma y puerta de salida (VR)
   song.ts        Tema en la URL: codificar y decodificar los bucles guardados
   fps.ts         Contador de FPS de desarrollo
 ```

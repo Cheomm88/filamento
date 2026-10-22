@@ -22,6 +22,14 @@
       <button id="screen">Jugar en pantalla</button>
       <p class="note">Usa auriculares</p>
       <p id="status"></p>
+      <section id="song" hidden>
+        <canvas id="qr" width="232" height="232" aria-label="Código QR con el enlace a tu tema"></canvas>
+        <p class="note">Tu tema vive en este enlace. Escanéalo con el móvil o compártelo.</p>
+        <div class="row">
+          <button id="copy">Copiar enlace</button>
+          <button id="send">Compartir</button>
+        </div>
+      </section>
     </main>
     <button id="share" hidden>Compartir tema</button>
     <div id="toast" role="status"></div>

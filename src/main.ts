@@ -5,6 +5,7 @@ import { Experience } from './experience';
 import { FpsMeter } from './fps';
 import { requestMotionPermission } from './touch';
 import { songFromUrl, writeSongToUrl } from './song';
+import qrcode from 'qrcode-generator';
 
 // En desarrollo (fuera del casco) se instala IWER: emula un Quest 3 con manos
 // para probar sin hardware. No entra en el build de producción.
@@ -24,6 +25,10 @@ const screenButton = document.querySelector<HTMLButtonElement>('#screen')!;
 const status = document.querySelector<HTMLElement>('#status')!;
 const shareButton = document.querySelector<HTMLButtonElement>('#share')!;
 const toast = document.querySelector<HTMLElement>('#toast')!;
+const songPanel = document.querySelector<HTMLElement>('#song')!;
+const qrCanvas = document.querySelector<HTMLCanvasElement>('#qr')!;
+const copyButton = document.querySelector<HTMLButtonElement>('#copy')!;
+const sendButton = document.querySelector<HTMLButtonElement>('#send')!;
 const sharedSong = songFromUrl();
 if (sharedSong?.length) {
   document.querySelector<HTMLElement>('.line')!.textContent =
@@ -114,6 +119,8 @@ async function enterVR(): Promise<void> {
     setupSong(experience);
   }
   screenButton.hidden = true;
+  // La puerta de la cúpula termina la sesión y vuelve a la página de entrada.
+  experience.onExitRequest = () => void stage.renderer.xr.getSession()?.end();
   if (import.meta.env.DEV) Object.assign(window, { filamento: { stage, experience } });
   await stage.renderer.xr.setSession(session);
   needsAnchor = true;
@@ -164,11 +171,47 @@ function setupSong(ex: Experience): void {
   };
 }
 
+// En pantalla: botón flotante. En la página de entrada (al salir de VR):
+// panel con QR, copiar enlace y compartir.
 function updateShare(): void {
   const hasSong = (experience?.songLoops.length ?? 0) > 0;
-  const visible = experience?.mode === 'screen' || !landing.classList.contains('hidden');
-  shareButton.hidden = !(hasSong && visible);
+  const onLanding = !landing.classList.contains('hidden');
+  shareButton.hidden = !(hasSong && experience?.mode === 'screen' && !onLanding);
+  songPanel.hidden = !(hasSong && onLanding);
+  if (!songPanel.hidden) drawQr(location.href);
+  sendButton.hidden = !navigator.share;
 }
+
+function drawQr(text: string): void {
+  const qr = qrcode(0, 'L');
+  qr.addData(text);
+  qr.make();
+  const n = qr.getModuleCount();
+  const quiet = 3;
+  const size = qrCanvas.width;
+  const cell = Math.floor(size / (n + quiet * 2));
+  const offset = Math.floor((size - cell * n) / 2);
+  const g = qrCanvas.getContext('2d')!;
+  g.fillStyle = '#e8f6f8';
+  g.fillRect(0, 0, size, size);
+  g.fillStyle = '#000';
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) if (qr.isDark(r, c)) g.fillRect(offset + c * cell, offset + r * cell, cell, cell);
+  }
+}
+
+copyButton.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(location.href);
+    showToast('Enlace copiado');
+  } catch {
+    showToast('No se pudo copiar');
+  }
+});
+
+sendButton.addEventListener('click', () => {
+  navigator.share?.({ title: 'Filamento', text: 'Escucha el tema que he hecho con luz', url: location.href }).catch(() => {});
+});
 
 let toastTimer = 0;
 function showToast(text: string): void {

@@ -6,6 +6,7 @@ import { edgeKey, Network, type Constellation, type Cycle } from './network';
 import { HandVisuals, XRRig, type InputRig, type Pointer } from './input';
 import { ScreenLayout, TouchRig, type SongSpace } from './touch';
 import { Dispenser, dispenserPositionsVR } from './dispenser';
+import { DomeGuide } from './dome';
 import { Onboarding } from './onboarding';
 import type { SongLoop } from './song';
 import type { Stage } from './scene';
@@ -46,7 +47,9 @@ export class Experience {
   readonly onboarding: Onboarding;
   readonly space: SongSpace;
   readonly dispenser: Dispenser;
+  readonly dome: DomeGuide;
   onSongChange: () => void = () => {};
+  onExitRequest: () => void = () => {};
 
   private visuals: HandVisuals;
   private flashes: Flash[] = [];
@@ -55,6 +58,10 @@ export class Experience {
   private resetLatched = false;
   private started = false;
   private pendingSong: SongLoop[] | null = null;
+  private learnedStore = false; // ya guardó un bucle: no más pistas
+  private hintTimer = 0;
+  private hintsShown = 0;
+  private doorActive = false;
   private tmp = new THREE.Vector3();
   private eye = new THREE.Vector3();
 
@@ -87,6 +94,10 @@ export class Experience {
     };
     this.dispenser = new Dispenser(this.space.dispenserSlots, SONG.dispenser.scale * (layout?.flat.pieceScale ?? 1));
     stage.world.add(this.dispenser.object);
+    const flat = layout?.flat.pieceScale ?? 1;
+    const door = screen ? null : arcPosition(SONG.door.angle, SONG.door.y, SONG.door.radius);
+    this.dome = new DomeGuide(this.space.domeSlots.slice(0, this.maxSlots), flat, door);
+    stage.world.add(this.dome.object);
 
     this.network.onNote = (id, time) => {
       const piece = this.pieces[id];
@@ -102,6 +113,7 @@ export class Experience {
       }
       this.flashes.push({ piece: this.pieces[cycle.members[0]], time, glow: cycle.color, strength: 0.6 });
       this.dispenser.show(); // segundo descubrimiento
+      this.dome.show();
     };
   }
 
@@ -144,6 +156,7 @@ export class Experience {
       if (p.active) p.channel.setPosition(p.group.getWorldPosition(this.tmp));
     }
     this.dispenser.update(dt, time, eye);
+    this.updateGuides(dt, eye);
 
     this.network.update(now, visualNow, this.hands.some((h) => h.grabbed));
 
@@ -169,6 +182,7 @@ export class Experience {
     this.dispenser.full = this.aliveCount() >= SONG.maxPieces;
     if (this.onboarding.phase === 'title') return;
 
+    this.doorActive = false;
     for (const h of this.hands) {
       const loop = this.loopGrabs.get(h);
       if (!h.tracked) {
@@ -182,6 +196,12 @@ export class Experience {
         const seed = this.onboarding.seed;
         const pts = h.isHand ? h.tips : [h.point];
         if (pts.some((t) => t.distanceTo(seed.base) < INPUT.touchRadius)) this.onboarding.unfold();
+      }
+
+      // Mantener el pellizco sobre la puerta (VR) saca de la experiencia.
+      if (!h.grabbed && !loop && h.pinching && this.dome.doorNear(h.point, SONG.door.reach)) {
+        this.doorActive = true;
+        continue;
       }
 
       if (loop) {
@@ -365,6 +385,7 @@ export class Experience {
     if (slot >= 0) {
       if (constellation) constellation.slot = slot;
       else this.network.freeze(g.cycle, slot);
+      this.learnedStore = true;
       this.flyToSlot(g.members, slot);
       this.network.commit(null, now);
       this.afterCommit();
@@ -387,7 +408,7 @@ export class Experience {
 
   private freeSlot(point: THREE.Vector3, own: Constellation | null): number {
     const used = new Set(this.network.constellations.filter((c) => c !== own).map((c) => c.slot));
-    const max = Math.min(SONG.maxConstellations, this.space.domeSlots.length);
+    const max = this.maxSlots;
     let best = -1;
     let bestD = Infinity;
     for (let i = 0; i < max; i++) {
@@ -488,8 +509,57 @@ export class Experience {
       this.network.addConstellation(ids, loop.steps, loop.muted, slot);
     });
     this.dispenser.show();
+    this.dome.show();
     this.network.commit(null, now);
     this.audio.setLoopLevel(this.network.audibleCycleCount);
+  }
+
+  // ---- Guías de la cúpula ---------------------------------------------------
+
+  private get maxSlots(): number {
+    return Math.min(SONG.maxConstellations, this.space.domeSlots.length);
+  }
+
+  private updateGuides(dt: number, eye: THREE.Vector3): void {
+    const used = new Set(this.network.constellations.map((c) => c.slot));
+    const free = (i: number) => !used.has(i);
+
+    // Mientras se sube un bucle, se ilumina el hueco donde caería.
+    let hot = -1;
+    for (const [h, g] of this.loopGrabs) {
+      if (!g.moved || h.point.y < this.space.shrinkStartY) continue;
+      const center = g.members
+        .reduce((s, id) => s.add(this.pieces[id].base), new THREE.Vector3())
+        .divideScalar(g.members.length);
+      hot = this.freeSlot(center, g.cycle.constellation);
+    }
+
+    // Pista fantasma hasta que se guarda el primer bucle.
+    const work = this.network.allCycles.find((c) => !c.constellation);
+    const busy = this.loopGrabs.size > 0 || this.hands.some((h) => h.grabbed);
+    if (!this.learnedStore && work && !busy && this.dome.shownGuides) {
+      this.hintTimer += dt;
+      const wait = this.hintsShown === 0 ? SONG.hintFirst : SONG.hintEvery;
+      if (this.hintTimer > wait) {
+        const pts = work.order.map((id) => this.pieces[id].base);
+        const center = pts.reduce((s, p) => s.clone().add(p), new THREE.Vector3()).divideScalar(pts.length);
+        const slot = this.freeSlot(center, null);
+        if (slot >= 0) this.dome.playGhost(pts, this.space.domeSlots[slot]);
+        this.hintTimer = 0;
+        this.hintsShown++;
+      }
+    } else {
+      this.hintTimer = 0;
+    }
+
+    const door = this.network.constellations.length > 0;
+    const step = dt / this.dome.doorHold;
+    this.dome.doorProgress = this.doorActive ? Math.min(1, this.dome.doorProgress + step) : Math.max(0, this.dome.doorProgress - step * 2);
+    if (this.dome.doorProgress >= 1) {
+      this.dome.doorProgress = 0;
+      this.onExitRequest();
+    }
+    this.dome.update(dt, eye, free, hot, door);
   }
 
   // ---- Reset ------------------------------------------------------------------

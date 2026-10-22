@@ -30,7 +30,7 @@ export function getHaloTexture(): THREE.Texture {
 
 const LINE = 0.0018; // grosor del trazo
 
-function circle(r: number, n = 64): THREE.Vector2[] {
+export function circle(r: number, n = 64): THREE.Vector2[] {
   return Array.from({ length: n }, (_, i) => {
     const a = (i / n) * Math.PI * 2;
     return new THREE.Vector2(Math.cos(a) * r, Math.sin(a) * r);
@@ -38,7 +38,7 @@ function circle(r: number, n = 64): THREE.Vector2[] {
 }
 
 // Polígono regular con esquinas redondeadas.
-function roundedPolygon(sides: number, r: number, corner: number, perCorner = 10): THREE.Vector2[] {
+export function roundedPolygon(sides: number, r: number, corner: number, perCorner = 10): THREE.Vector2[] {
   const pts: THREE.Vector2[] = [];
   const inner = r - corner / Math.cos(Math.PI / sides);
   for (let i = 0; i < sides; i++) {
@@ -67,7 +67,7 @@ function stadium(halfLength: number, r: number, n = 24): THREE.Vector2[] {
 }
 
 // Banda de grosor constante a lo largo de un contorno cerrado.
-function outline(contours: THREE.Vector2[][], width = LINE): THREE.BufferGeometry {
+export function outline(contours: THREE.Vector2[][], width = LINE): THREE.BufferGeometry {
   const pos: number[] = [];
   const idx: number[] = [];
   for (const pts of contours) {

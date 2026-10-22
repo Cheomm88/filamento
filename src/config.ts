@@ -139,7 +139,7 @@ export const SONG = {
   maxConstellations: 11,
   loopMultiple: 8, // cada bucle dura un múltiplo de medio compás (8 semicorcheas)
   miniScale: 0.35, // tamaño de un bucle guardado
-  threadRadius: 0.03, // distancia al hilo para agarrar un bucle entero
+  threadRadius: 0.04, // distancia al hilo para agarrar un bucle entero
   tapMaxMove: 0.02, // pellizco corto sin mover = silenciar/activar
   tapMaxTime: 0.35,
   // Cúpula (VR): al subir un bucle por encima de shrinkStartY empieza a
@@ -153,4 +153,10 @@ export const SONG = {
   // Fuente: fila de siluetas bajo el arco, aparece tras el primer bucle.
   dispenser: { y: -0.56, z: -0.27, spacing: 0.085, scale: 0.9 },
   removeRadius: 0.05, // soltar una pieza sobre la fuente la retira
+  // Pista fantasma: hasta que guardas tu primer bucle, su silueta sube sola
+  // a la cúpula de vez en cuando.
+  hintFirst: 3,
+  hintEvery: 9,
+  // Puerta para salir de VR (mantener el pellizco) y compartir el tema.
+  door: { angle: -66, y: 0.12, radius: 0.38, reach: 0.05 },
 };
