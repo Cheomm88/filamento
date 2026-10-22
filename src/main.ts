@@ -3,6 +3,7 @@ import './style.css';
 import { Stage } from './scene';
 import { Experience } from './experience';
 import { FpsMeter } from './fps';
+import { requestMotionPermission } from './touch';
 
 // En desarrollo (fuera del casco) se instala IWER: emula un Quest 3 con manos
 // para probar sin hardware. No entra en el build de producción.
@@ -17,7 +18,8 @@ if (import.meta.env.DEV && !/OculusBrowser/i.test(navigator.userAgent)) {
 
 const canvas = document.querySelector<HTMLCanvasElement>('#scene')!;
 const landing = document.querySelector<HTMLElement>('#landing')!;
-const button = document.querySelector<HTMLButtonElement>('#enter')!;
+const vrButton = document.querySelector<HTMLButtonElement>('#enter')!;
+const screenButton = document.querySelector<HTMLButtonElement>('#screen')!;
 const status = document.querySelector<HTMLElement>('#status')!;
 
 const stage = new Stage(canvas);
@@ -48,9 +50,13 @@ stage.renderer.setAnimationLoop((_t, frame) => {
     }
   }
 
-  if (experience && xr.isPresenting) {
+  if (experience?.mode === 'xr' && xr.isPresenting) {
     experience.update(dt, time);
     experience.audio.updateListener(xr.getCamera());
+  } else if (experience?.mode === 'screen') {
+    experience.layout!.update(dt);
+    experience.update(dt, time);
+    experience.audio.updateListener(stage.camera);
   }
   stage.update(dt, time);
   if (fps) {
@@ -61,21 +67,30 @@ stage.renderer.setAnimationLoop((_t, frame) => {
 });
 
 async function init(): Promise<void> {
+  screenButton.addEventListener('click', enterScreen);
   const xr = navigator.xr;
   const supported = xr ? await xr.isSessionSupported('immersive-vr').catch(() => false) : false;
   if (!supported) {
-    button.disabled = true;
-    status.textContent = 'Abre este enlace en el navegador de Meta Quest 3.';
+    // Sin VR, la versión de pantalla pasa a ser la principal.
+    vrButton.hidden = true;
+    screenButton.classList.add('primary');
+    screenButton.textContent = 'Empezar';
+    status.textContent = 'En Meta Quest 3, abre este enlace para la versión VR.';
     return;
   }
-  button.disabled = false;
-  button.addEventListener('click', enter);
+  vrButton.disabled = false;
+  vrButton.addEventListener('click', enterVR);
 }
 
-async function enter(): Promise<void> {
+function audio(): AudioContext {
   // El AudioContext se crea y reanuda dentro del gesto del usuario.
   audioCtx ??= new AudioContext({ latencyHint: 'interactive' });
   void audioCtx.resume();
+  return audioCtx;
+}
+
+async function enterVR(): Promise<void> {
+  const ctx = audio();
   let session: XRSession;
   try {
     session = await navigator.xr!.requestSession('immersive-vr', {
@@ -86,7 +101,8 @@ async function enter(): Promise<void> {
     console.error(e);
     return;
   }
-  experience ??= new Experience(stage, audioCtx);
+  experience ??= new Experience(stage, ctx, 'xr');
+  screenButton.hidden = true;
   if (import.meta.env.DEV) Object.assign(window, { filamento: { stage, experience } });
   await stage.renderer.xr.setSession(session);
   needsAnchor = true;
@@ -95,6 +111,39 @@ async function enter(): Promise<void> {
     landing.classList.remove('hidden');
     void audioCtx?.suspend();
   });
+}
+
+let wakeLock: WakeLockSentinel | null = null;
+
+async function keepAwake(): Promise<void> {
+  try {
+    wakeLock = (await navigator.wakeLock?.request('screen')) ?? null;
+  } catch {
+    wakeLock = null;
+  }
+}
+
+function enterScreen(): void {
+  const ctx = audio();
+  requestMotionPermission();
+  experience = new Experience(stage, ctx, 'screen');
+  if (import.meta.env.DEV) Object.assign(window, { filamento: { stage, experience } });
+  landing.classList.add('hidden');
+  experience.start();
+  void keepAwake();
+  // Silencio y pausa del reloj de audio cuando la pestaña no se ve.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      void ctx.suspend();
+    } else {
+      void ctx.resume();
+      if (!wakeLock || wakeLock.released) void keepAwake();
+    }
+  });
+}
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 
 void init();

@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { INPUT, PIECES } from './config';
-import { AudioEngine, heightToNote } from './audio';
+import { AudioEngine, heightToNote, setPitchRange } from './audio';
 import { createPieces, type Piece } from './pieces';
 import { Network } from './network';
-import { Hand, HandVisuals } from './input';
+import { HandVisuals, XRRig, type InputRig, type Pointer } from './input';
+import { ScreenLayout, TouchRig } from './touch';
 import { Onboarding } from './onboarding';
 import type { Stage } from './scene';
 
@@ -20,9 +21,11 @@ export class Experience {
   readonly audio: AudioEngine;
   readonly pieces: Piece[];
   readonly network: Network;
-  readonly hands: Hand[];
+  readonly rig: InputRig;
+  readonly layout: ScreenLayout | null;
+  readonly hands: Pointer[];
   readonly onboarding: Onboarding;
-  private visuals = new HandVisuals();
+  private visuals: HandVisuals;
   private flashes: Flash[] = [];
   private resetHold = 0;
   private resetLatched = false;
@@ -33,13 +36,20 @@ export class Experience {
   constructor(
     private stage: Stage,
     ctx: AudioContext,
+    readonly mode: 'xr' | 'screen',
   ) {
-    this.audio = new AudioEngine(ctx);
-    this.pieces = createPieces(this.audio);
+    const screen = mode === 'screen';
+    this.audio = new AudioEngine(ctx, { hrtf: !screen });
+    const layout = screen ? new ScreenLayout(stage) : null;
+    if (layout) setPitchRange(layout.flat.yLow, layout.flat.yHigh);
+    this.pieces = createPieces(this.audio, layout?.flat ?? null);
     for (const p of this.pieces) stage.world.add(p.group);
-    this.network = new Network(this.pieces);
+    this.network = new Network(this.pieces, layout?.distanceScale ?? 1);
     stage.world.add(this.network.object);
-    this.hands = [0, 1].map((i) => new Hand(i, stage.renderer, stage.scene));
+    this.rig = layout ? new TouchRig(stage, layout) : new XRRig(stage.renderer, stage.scene);
+    this.layout = layout;
+    this.hands = this.rig.pointers;
+    this.visuals = new HandVisuals(screen ? 2.5 : 1);
     stage.world.add(this.visuals.mesh);
     this.onboarding = new Onboarding(this.pieces, this.audio);
 
@@ -58,10 +68,14 @@ export class Experience {
     };
   }
 
+  get camera(): THREE.Camera {
+    return this.mode === 'xr' ? this.stage.renderer.xr.getCamera() : this.stage.camera;
+  }
+
   start(): void {
     if (this.started) return;
     this.started = true;
-    this.stage.showTitle('FILAMENTO');
+    this.stage.showTitle('FILAMENTO', this.layout?.titlePosition, this.layout?.titleScale);
   }
 
   update(dt: number, time: number): void {
@@ -73,11 +87,11 @@ export class Experience {
     if (this.onboarding.phase === 'title' && this.started && !this.stage.titleVisible) this.onboarding.begin();
 
     this.stage.world.updateMatrixWorld();
-    for (const h of this.hands) h.update(this.stage.world, dt);
+    this.rig.update(this.stage.world, dt);
     this.interact(dt, now);
     this.onboarding.update(dt);
 
-    const eye = this.stage.renderer.xr.getCamera().getWorldPosition(this.eye);
+    const eye = this.camera.getWorldPosition(this.eye);
     for (const p of this.pieces) {
       p.update(dt, time, eye);
       if (p.active) p.channel.setPosition(p.group.getWorldPosition(this.tmp));
@@ -117,12 +131,12 @@ export class Experience {
 
       if (h.grabbed) {
         const p = h.grabbed;
-        if (h.justReleased || !h.pinching) {
+        if (!h.pinching) {
           this.release(h, now);
           continue;
         }
         const target = this.tmp.copy(h.point).add(h.grabOffset);
-        if (target.length() > PIECES.maxDistanceFromHead) target.setLength(PIECES.maxDistanceFromHead);
+        this.rig.constrain(target);
         p.base.copy(target);
         p.hoverTarget = 1;
         // Vista previa: suena cada vez que la altura cruza a otra nota.
@@ -163,7 +177,7 @@ export class Experience {
     return best;
   }
 
-  private grab(h: Hand, p: Piece, now: number): void {
+  private grab(h: Pointer, p: Piece, now: number): void {
     if (p === this.onboarding.seed) this.onboarding.unfold();
     p.grabbedBy = h.index;
     p.moveTo(p.base, 0); // cancela cualquier animación en curso
@@ -174,7 +188,7 @@ export class Experience {
     p.triggerFlash(0.7);
   }
 
-  private release(h: Hand, now: number): void {
+  private release(h: Pointer, now: number): void {
     const p = h.grabbed!;
     p.grabbedBy = null;
     p.moved = true;
@@ -183,7 +197,8 @@ export class Experience {
     this.audio.setLoopLevel(this.network.cycleCount);
   }
 
-  // Reset: palmas abiertas juntas (o ambos botones de agarre) durante 1,5 s.
+  // Reset: palmas abiertas juntas, ambos botones de agarre o dos dedos en la
+  // pantalla (sin tocar piezas) durante 1,5 s.
   private updateReset(dt: number): void {
     const [a, b] = this.hands;
     let holding = false;

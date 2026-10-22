@@ -65,7 +65,7 @@ export class Stage {
     this.glow.b = Math.min(1.5, this.glow.b + color.b * amount);
   }
 
-  showTitle(text: string): void {
+  showTitle(text: string, position?: THREE.Vector3, scale = 1): void {
     const c = document.createElement('canvas');
     c.width = 1024;
     c.height = 192;
@@ -89,7 +89,9 @@ export class Stage {
       fog: false,
     });
     this.title = new THREE.Mesh(new THREE.PlaneGeometry(0.64, 0.12), mat);
-    this.title.position.set(0, -0.02, -0.9);
+    this.title.scale.setScalar(scale);
+    if (position) this.title.position.copy(position);
+    else this.title.position.set(0, -0.02, -0.9);
     this.world.add(this.title);
     this.titleTime = 0;
   }

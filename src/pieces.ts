@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { COLORS, HALO, PIECES, SHAPE_COLOR, type ColorName, type ShapeKind } from './config';
+import { COLORS, HALO, MUSIC, PIECES, SHAPE_COLOR, type ColorName, type ShapeKind } from './config';
 import { heightToNote, type AudioEngine, type Channel } from './audio';
 
 // Piezas planas y huecas: un contorno fino de neón con el interior negro,
@@ -147,7 +147,7 @@ export class Piece {
   readonly kind: ShapeKind;
   readonly colorName: ColorName;
   readonly color: THREE.Color;
-  readonly radius: number;
+  private baseRadius: number;
   readonly group = new THREE.Group(); // mira siempre a la cámara
   readonly glyph = new THREE.Group(); // contorno + relleno, gira en su plano
   readonly halo: THREE.Sprite;
@@ -180,7 +180,7 @@ export class Piece {
     this.base.copy(home);
 
     const geo = shapeGeo(kind);
-    this.radius = geo.radius;
+    this.baseRadius = geo.radius;
     const line = new THREE.Mesh(geo.line, lineMaterial(this.colorName));
     line.position.z = 0.0005;
     const fill = new THREE.Mesh(geo.fill, fillMaterial);
@@ -235,6 +235,10 @@ export class Piece {
   moveTo(target: THREE.Vector3, dur: number, from: THREE.Vector3 = this.base, ease = easeInOut, delay = 0): void {
     this.tween = { from: from.clone(), to: target.clone(), t: -delay, dur, ease };
     this.base.copy(from);
+  }
+
+  get radius(): number {
+    return this.baseRadius * this.group.scale.x;
   }
 
   get animating(): boolean {
@@ -306,9 +310,25 @@ export function arcPosition(angleDeg: number, y: number, radius = PIECES.arcRadi
   return new THREE.Vector3(Math.sin(a) * radius, y, -Math.cos(a) * radius);
 }
 
-export function createPieces(audio: AudioEngine): Piece[] {
+// Modo pantalla: el arco se aplana sobre un plano y se reescala a la pantalla.
+export interface FlatLayout {
+  planeZ: number;
+  spread: number; // factor horizontal
+  yLow: number; // franja vertical equivalente a MUSIC.yLow..yHigh
+  yHigh: number;
+  pieceScale: number;
+}
+
+export function createPieces(audio: AudioEngine, flat: FlatLayout | null = null): Piece[] {
   return PIECES.layout.map((l, i) => {
     const r = i === PIECES.onboardingIndex ? PIECES.onboardingDistance : PIECES.arcRadius;
-    return new Piece(i, l.kind, arcPosition(l.angle, l.y, r), audio);
+    const home = arcPosition(l.angle, l.y, r);
+    if (flat) {
+      const t = (l.y - MUSIC.yLow) / (MUSIC.yHigh - MUSIC.yLow);
+      home.set(home.x * flat.spread, THREE.MathUtils.lerp(flat.yLow, flat.yHigh, t), flat.planeZ);
+    }
+    const piece = new Piece(i, l.kind, home, audio);
+    if (flat) piece.group.scale.setScalar(flat.pieceScale);
+    return piece;
   });
 }

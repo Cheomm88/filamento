@@ -19,8 +19,17 @@ export function noteHz(index: number): number {
 
 // Convierte la altura (y relativa a la cabeza) en un índice de la escala, con
 // histéresis respecto a la nota anterior para que no tiemble en los bordes.
+let pitchLow = MUSIC.yLow;
+let pitchHigh = MUSIC.yHigh;
+
+// En modo pantalla la franja de alturas se adapta al alto visible.
+export function setPitchRange(low: number, high: number): void {
+  pitchLow = low;
+  pitchHigh = high;
+}
+
 export function heightToNote(y: number, previous = -1): number {
-  const t = (y - MUSIC.yLow) / (MUSIC.yHigh - MUSIC.yLow);
+  const t = (y - pitchLow) / (pitchHigh - pitchLow);
   const raw = THREE.MathUtils.clamp(t, 0, 1) * (NOTE_COUNT - 1);
   if (previous >= 0 && Math.abs(raw - previous) < 0.5 + MUSIC.hysteresis) return previous;
   return Math.round(raw);
@@ -39,8 +48,11 @@ export class AudioEngine {
   private noise: AudioBuffer;
   private loopGain: GainNode;
 
-  constructor(ctx: AudioContext) {
+  private hrtf: boolean;
+
+  constructor(ctx: AudioContext, opts: { hrtf: boolean } = { hrtf: true }) {
     this.ctx = ctx;
+    this.hrtf = opts.hrtf;
 
     // Cadena master: compresor suave → limitador duro → salida.
     const comp = ctx.createDynamicsCompressor();
@@ -79,7 +91,7 @@ export class AudioEngine {
     const ctx = this.ctx;
     const input = ctx.createGain();
     const panner = ctx.createPanner();
-    panner.panningModel = 'HRTF';
+    panner.panningModel = this.hrtf ? 'HRTF' : 'equalpower';
     panner.distanceModel = 'inverse';
     panner.refDistance = 0.35;
     panner.rolloffFactor = 1;

@@ -28,6 +28,20 @@ Cada forma tiene su timbre: esfera = campana, anillo = pluck, tubo = pad, prisma
 
 Toda la acción ocurre a menos de 60 cm de la cabeza y en un giro de menos de 90°.
 
+## Modo pantalla (móvil, tablet, escritorio)
+
+La misma URL funciona sin casco: **Jugar en pantalla** (o **Empezar**, si el dispositivo no tiene VR).
+
+- Las piezas viven en un plano frontal. **Altura en la pantalla = nota**, **distancia = tiempo**, igual que en VR.
+- Arrastra con el dedo (o con el ratón). Se pueden mover dos piezas a la vez.
+- **Reset:** mantén dos dedos sobre la pantalla, sin tocar piezas, durante 1,5 s.
+- El espacio de juego se adapta a la pantalla, en vertical o en apaisado: umbral de conexión, velocidad del pulso y franja de notas se reescalan.
+- Leve paralaje con el giroscopio: al inclinar el móvil, la escena se mueve un poco.
+- Audio con paneo estéreo, más ligero que el HRTF que se usa en VR.
+- La pantalla no se apaga mientras juegas (Wake Lock).
+
+**Instalable (PWA):** en Android, Chrome ofrece *Añadir a pantalla de inicio* y se abre a pantalla completa. Funciona sin conexión tras la primera visita. Para publicarlo en Play Store se puede empaquetar como TWA con [Bubblewrap](https://github.com/GoogleChromeLabs/bubblewrap) sin cambiar el código.
+
 ## Ejecutar en local
 
 Requisitos: Node 20+.
@@ -62,7 +76,8 @@ src/
   pieces.ts      Piezas: contornos planos y huecos (trazo de neón, interior negro) mirando al usuario, halo, onda por nota
   network.ts     Conexiones (grado ≤ 2), pulsos con reloj cuantizado, detección de circuitos
   audio.ts       Web Audio: 5 timbres sintetizados, HRTF por pieza, reverb generada, compresor + limitador, drone
-  input.ts       Manos (pinch por distancia entre articulaciones) y mandos con una sola interfaz; puntas de dedos
+  input.ts       Interfaz común de punteros; manos (pinch por distancia entre articulaciones) y mandos; puntas de dedos
+  touch.ts       Modo pantalla: cámara y espacio de juego adaptados a la pantalla, toques/ratón, giroscopio
   onboarding.ts  Título → pieza que respira → despliegue en arco
   fps.ts         Contador de FPS de desarrollo
 ```

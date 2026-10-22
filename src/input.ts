@@ -1,10 +1,33 @@
 import * as THREE from 'three';
-import { INPUT } from './config';
+import { INPUT, PIECES } from './config';
 import type { Piece } from './pieces';
 
-// Une manos (pinch índice-pulgar) y mandos (gatillo) en una sola interfaz.
-// Todas las posiciones se expresan en coordenadas de `world` (relativas a la
-// cabeza al entrar en VR).
+// Une manos (pinch índice-pulgar), mandos (gatillo) y toques en pantalla en
+// una sola interfaz. Todas las posiciones se expresan en coordenadas de
+// `world` (relativas a la cabeza al entrar en VR).
+
+// Lo que la experiencia necesita saber de cada mano, mando o dedo.
+export interface Pointer {
+  readonly index: number;
+  readonly isHand: boolean; // true: hay articulaciones (puntas y palma)
+  readonly tracked: boolean;
+  readonly pinching: boolean; // pinch, gatillo o dedo apoyado
+  readonly pinchAge: number;
+  readonly squeezing: boolean; // gesto de reset sin manos
+  readonly point: THREE.Vector3;
+  readonly palm: THREE.Vector3;
+  readonly tips: THREE.Vector3[];
+  readonly grabRadius: number;
+  grabbed: Piece | null;
+  readonly grabOffset: THREE.Vector3;
+}
+
+export interface InputRig {
+  readonly pointers: Pointer[];
+  update(world: THREE.Object3D, dt: number): void;
+  // Limita dónde puede quedar una pieza arrastrada.
+  constrain(target: THREE.Vector3): void;
+}
 
 const TIP_JOINTS = [
   'thumb-tip',
@@ -14,7 +37,7 @@ const TIP_JOINTS = [
   'pinky-finger-tip',
 ] as const;
 
-export class Hand {
+export class Hand implements Pointer {
   readonly index: number;
   connected = false;
   isHand = false;
@@ -29,7 +52,6 @@ export class Hand {
   readonly tips = TIP_JOINTS.map(() => new THREE.Vector3());
   grabbed: Piece | null = null;
   readonly grabOffset = new THREE.Vector3();
-  lastNote = -1;
 
   controller: THREE.XRTargetRaySpace;
   hand: THREE.XRHandSpace;
@@ -97,13 +119,29 @@ export class Hand {
   }
 }
 
+export class XRRig implements InputRig {
+  readonly pointers: Hand[];
+
+  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene) {
+    this.pointers = [0, 1].map((i) => new Hand(i, renderer, scene));
+  }
+
+  update(world: THREE.Object3D, dt: number): void {
+    for (const h of this.pointers) h.update(world, dt);
+  }
+
+  constrain(target: THREE.Vector3): void {
+    if (target.length() > PIECES.maxDistanceFromHead) target.setLength(PIECES.maxDistanceFromHead);
+  }
+}
+
 // Puntas de los dedos (o punta del mando) como puntos de luz tenues.
 export class HandVisuals {
   readonly mesh: THREE.InstancedMesh;
   private readonly m = new THREE.Matrix4();
   private readonly c = new THREE.Color();
 
-  constructor() {
+  constructor(private sizeScale = 1) {
     const geo = new THREE.IcosahedronGeometry(1, 1);
     const mat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
@@ -120,8 +158,8 @@ export class HandVisuals {
   }
 
   // `charge` 0..1: progreso del gesto de reset, ilumina todas las puntas.
-  update(hands: Hand[], charge: number): void {
-    const s = INPUT.fingertipSize;
+  update(hands: Pointer[], charge: number): void {
+    const s = INPUT.fingertipSize * this.sizeScale;
     for (let h = 0; h < 2; h++) {
       const hand = hands[h];
       for (let t = 0; t < 5; t++) {

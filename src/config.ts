@@ -116,3 +116,19 @@ export const ATMOSPHERE = {
   glowStrength: 0.012, // brillo máximo del fondo (lineal) con un circuito sonando
   titleDuration: 2.4,
 };
+
+// Modo pantalla (móvil/tablet/escritorio sin VR): las piezas viven en un plano
+// frontal. Las medidas se reescalan al tamaño visible de la pantalla.
+export const TOUCH = {
+  planeZ: -0.36,
+  centerY: -0.33,
+  fov: 50,
+  // Caja mínima que debe verse (m) en apaisado y en vertical.
+  fitLandscape: { w: 1.0, h: 0.78 },
+  fitPortrait: { w: 0.62, h: 0.78 },
+  margin: 0.42, // fracción de media pantalla que ocupan arco y escala
+  pieceScale: 1.35,
+  grabRadius: 0.075,
+  parallax: 0.045, // desplazamiento máximo de cámara con el giroscopio
+  titleOffsetY: 0.08,
+};

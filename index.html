@@ -2,9 +2,14 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <meta name="description" content="Filamento: dibujas música con luz, a un brazo de distancia. Experiencia VR para Meta Quest 3 con hand tracking." />
     <meta name="theme-color" content="#000000" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <title>Filamento</title>
   </head>
   <body>
@@ -14,7 +19,8 @@
       <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
       <p class="line">Coloca luz en la oscuridad. Cuando dos piezas se acercan, la música las une.</p>
       <button id="enter" disabled>Entrar en VR</button>
-      <p class="note">Usa auriculares · Solo con las manos · Sentado</p>
+      <button id="screen">Jugar en pantalla</button>
+      <p class="note">Usa auriculares</p>
       <p id="status"></p>
     </main>
     <script type="module" src="/src/main.ts"></script>

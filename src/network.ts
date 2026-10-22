@@ -51,8 +51,14 @@ export class Network {
   private lines: THREE.LineSegments;
   private preview: THREE.LineSegments;
 
-  constructor(pieces: Piece[]) {
+  private connectDistance: number;
+  private pulseSpeed: number;
+
+  // `distanceScale` adapta umbral y velocidad al tamaño del espacio de juego.
+  constructor(pieces: Piece[], distanceScale = 1) {
     this.pieces = pieces;
+    this.connectDistance = GRAPH.connectDistance * distanceScale;
+    this.pulseSpeed = GRAPH.pulseSpeed * distanceScale;
     this.adj = pieces.map(() => []);
     const maxEdges = pieces.length * 2;
     this.lines = makeLines(maxEdges, GRAPH.lineOpacity);
@@ -102,7 +108,7 @@ export class Network {
         if (!ps[j].active) continue;
         if (!isMoved(ps[i]) && !isMoved(ps[j])) continue;
         const d = ps[i].base.distanceTo(ps[j].base);
-        if (d < GRAPH.connectDistance) cand.push({ a: i, b: j, d });
+        if (d < this.connectDistance) cand.push({ a: i, b: j, d });
       }
     }
     cand.sort((x, y) => x.d - y.d);
@@ -123,7 +129,7 @@ export class Network {
 
   private segmentSteps(a: number, b: number): number {
     const d = this.pieces[a].base.distanceTo(this.pieces[b].base);
-    const steps = Math.round(d / GRAPH.pulseSpeed / this.step);
+    const steps = Math.round(d / this.pulseSpeed / this.step);
     return THREE.MathUtils.clamp(steps, 1, GRAPH.maxStepsPerSegment);
   }
 
