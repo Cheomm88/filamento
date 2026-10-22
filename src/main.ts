@@ -4,6 +4,7 @@ import { Stage } from './scene';
 import { Experience } from './experience';
 import { FpsMeter } from './fps';
 import { requestMotionPermission } from './touch';
+import { songFromUrl, writeSongToUrl } from './song';
 
 // En desarrollo (fuera del casco) se instala IWER: emula un Quest 3 con manos
 // para probar sin hardware. No entra en el build de producción.
@@ -21,6 +22,13 @@ const landing = document.querySelector<HTMLElement>('#landing')!;
 const vrButton = document.querySelector<HTMLButtonElement>('#enter')!;
 const screenButton = document.querySelector<HTMLButtonElement>('#screen')!;
 const status = document.querySelector<HTMLElement>('#status')!;
+const shareButton = document.querySelector<HTMLButtonElement>('#share')!;
+const toast = document.querySelector<HTMLElement>('#toast')!;
+const sharedSong = songFromUrl();
+if (sharedSong?.length) {
+  document.querySelector<HTMLElement>('.line')!.textContent =
+    'Te han enviado un tema hecho de luz. Entra para escucharlo y seguir componiendo.';
+}
 
 const stage = new Stage(canvas);
 stage.scene.add(stage.camera);
@@ -101,7 +109,10 @@ async function enterVR(): Promise<void> {
     console.error(e);
     return;
   }
-  experience ??= new Experience(stage, ctx, 'xr');
+  if (!experience) {
+    experience = new Experience(stage, ctx, 'xr');
+    setupSong(experience);
+  }
   screenButton.hidden = true;
   if (import.meta.env.DEV) Object.assign(window, { filamento: { stage, experience } });
   await stage.renderer.xr.setSession(session);
@@ -109,6 +120,7 @@ async function enterVR(): Promise<void> {
   landing.classList.add('hidden');
   session.addEventListener('end', () => {
     landing.classList.remove('hidden');
+    updateShare();
     void audioCtx?.suspend();
   });
 }
@@ -127,6 +139,7 @@ function enterScreen(): void {
   const ctx = audio();
   requestMotionPermission();
   experience = new Experience(stage, ctx, 'screen');
+  setupSong(experience);
   if (import.meta.env.DEV) Object.assign(window, { filamento: { stage, experience } });
   landing.classList.add('hidden');
   experience.start();
@@ -141,6 +154,43 @@ function enterScreen(): void {
     }
   });
 }
+
+// El tema (bucles guardados) vive en la URL: copiarla ya es compartirlo.
+function setupSong(ex: Experience): void {
+  if (sharedSong?.length) ex.loadSong(sharedSong);
+  ex.onSongChange = () => {
+    writeSongToUrl(ex.songLoops);
+    updateShare();
+  };
+}
+
+function updateShare(): void {
+  const hasSong = (experience?.songLoops.length ?? 0) > 0;
+  const visible = experience?.mode === 'screen' || !landing.classList.contains('hidden');
+  shareButton.hidden = !(hasSong && visible);
+}
+
+let toastTimer = 0;
+function showToast(text: string): void {
+  toast.textContent = text;
+  toast.classList.add('visible');
+  clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 2200);
+}
+
+shareButton.addEventListener('click', async () => {
+  const url = location.href;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: 'Filamento', text: 'Escucha el tema que he hecho con luz', url });
+    } else {
+      await navigator.clipboard.writeText(url);
+      showToast('Enlace copiado');
+    }
+  } catch {
+    // compartir cancelado
+  }
+});
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));

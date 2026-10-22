@@ -132,3 +132,25 @@ export const TOUCH = {
   parallax: 0.045, // desplazamiento máximo de cámara con el giroscopio
   titleOffsetY: 0.08,
 };
+
+// Componer temas: fuente de piezas, bucles guardados en la cúpula y compás.
+export const SONG = {
+  maxPieces: 32,
+  maxConstellations: 11,
+  loopMultiple: 8, // cada bucle dura un múltiplo de medio compás (8 semicorcheas)
+  miniScale: 0.35, // tamaño de un bucle guardado
+  threadRadius: 0.03, // distancia al hilo para agarrar un bucle entero
+  tapMaxMove: 0.02, // pellizco corto sin mover = silenciar/activar
+  tapMaxTime: 0.35,
+  // Cúpula (VR): al subir un bucle por encima de shrinkStartY empieza a
+  // encogerse; si se suelta por encima de storeY, se guarda.
+  shrinkStartY: -0.2,
+  storeY: -0.06,
+  domeRows: [
+    { y: 0.05, radius: 0.42, angles: [-50, -30, -10, 10, 30, 50] },
+    { y: 0.19, radius: 0.36, angles: [-40, -20, 0, 20, 40] },
+  ],
+  // Fuente: fila de siluetas bajo el arco, aparece tras el primer bucle.
+  dispenser: { y: -0.56, z: -0.27, spacing: 0.085, scale: 0.9 },
+  removeRadius: 0.05, // soltar una pieza sobre la fuente la retira
+};

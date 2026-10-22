@@ -117,7 +117,7 @@ interface ShapeGeo {
 }
 
 const shapeCache = new Map<ShapeKind, ShapeGeo>();
-function shapeGeo(kind: ShapeKind): ShapeGeo {
+export function shapeGeo(kind: ShapeKind): ShapeGeo {
   let s = shapeCache.get(kind);
   if (!s) {
     const d = shapes[kind]();
@@ -127,13 +127,16 @@ function shapeGeo(kind: ShapeKind): ShapeGeo {
   return s;
 }
 
-const lineMaterials = new Map<ColorName, THREE.MeshBasicMaterial>();
-function lineMaterial(name: ColorName): THREE.MeshBasicMaterial {
-  let m = lineMaterials.get(name);
+// `dim`: variante apagada para piezas silenciadas y siluetas de la fuente.
+const lineMaterials = new Map<string, THREE.MeshBasicMaterial>();
+export function lineMaterial(name: ColorName, dim = false): THREE.MeshBasicMaterial {
+  const key = name + (dim ? ':dim' : '');
+  let m = lineMaterials.get(key);
   if (!m) {
     const c = new THREE.Color(COLORS[name]).lerp(new THREE.Color(0xffffff), 0.12);
+    if (dim) c.multiplyScalar(0.22);
     m = new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide, fog: false });
-    lineMaterials.set(name, m);
+    lineMaterials.set(key, m);
   }
   return m;
 }
@@ -152,12 +155,18 @@ export class Piece {
   readonly glyph = new THREE.Group(); // contorno + relleno, gira en su plano
   readonly halo: THREE.Sprite;
   readonly ripple: THREE.Mesh;
+  private line: THREE.Mesh;
   readonly home: THREE.Vector3;
   readonly base = new THREE.Vector3(); // posición de reposo
   readonly channel: Channel;
 
   moved = false; // solo entra en el grafo de conexiones tras moverla una vez
   active = false; // visible e interactuable
+  frozen = false; // forma parte de una constelación guardada
+  disposed = false; // retirada; su hueco en el array se puede reutilizar
+  muted = false;
+  flatScale = 1; // escala base (modo pantalla)
+  shrink = 1; // escala de miniatura (constelaciones)
   grabbedBy: number | null = null;
   hoverTarget = 0;
   breath = 0; // usado por el onboarding
@@ -183,6 +192,7 @@ export class Piece {
     this.baseRadius = geo.radius;
     const line = new THREE.Mesh(geo.line, lineMaterial(this.colorName));
     line.position.z = 0.0005;
+    this.line = line;
     const fill = new THREE.Mesh(geo.fill, fillMaterial);
     this.glyph.add(fill, line);
     this.baseRoll = kind === 'tube' ? -0.5 : 0;
@@ -241,11 +251,28 @@ export class Piece {
     return this.baseRadius * this.group.scale.x;
   }
 
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    this.line.material = lineMaterial(this.colorName, muted);
+  }
+
+  // Retira la pieza de la escena y libera su canal de audio.
+  dispose(): void {
+    this.active = false;
+    this.disposed = true;
+    this.group.removeFromParent();
+    (this.halo.material as THREE.Material).dispose();
+    (this.ripple.material as THREE.Material).dispose();
+    this.channel.input.disconnect();
+    this.channel.panner.disconnect();
+  }
+
   get animating(): boolean {
     return this.tween !== null;
   }
 
   triggerFlash(strength = 1): void {
+    if (this.muted) strength *= 0.25;
     this.flash = Math.max(this.flash, strength);
     if (strength >= 0.5) this.rippleT = 0;
   }
@@ -272,6 +299,7 @@ export class Piece {
       p.z += Math.cos(s * 0.8) * a;
     }
     this.group.lookAt(eye);
+    this.group.scale.setScalar(this.flatScale * this.shrink);
     this.glyph.rotation.z = this.baseRoll + Math.sin(s * 0.5) * 0.08;
 
     this.hover += (this.hoverTarget - this.hover) * Math.min(1, dt * 12);
@@ -285,7 +313,7 @@ export class Piece {
     this.halo.scale.setScalar(Math.max(scale, 1e-4));
     (this.halo.material as THREE.SpriteMaterial).opacity = Math.min(
       1,
-      (HALO.baseOpacity + 0.2 * this.hover + (1 - HALO.baseOpacity) * glow) * r,
+      (HALO.baseOpacity + 0.2 * this.hover + (1 - HALO.baseOpacity) * glow) * r * (this.muted ? 0.3 : 1),
     );
     const g = Math.max(r * (1 + HALO.coreFlashScale * this.flash + 0.08 * this.hover), 1e-4);
     this.glyph.scale.setScalar(g);
@@ -328,7 +356,7 @@ export function createPieces(audio: AudioEngine, flat: FlatLayout | null = null)
       home.set(home.x * flat.spread, THREE.MathUtils.lerp(flat.yLow, flat.yHigh, t), flat.planeZ);
     }
     const piece = new Piece(i, l.kind, home, audio);
-    if (flat) piece.group.scale.setScalar(flat.pieceScale);
+    if (flat) piece.flatScale = flat.pieceScale;
     return piece;
   });
 }

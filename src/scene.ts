@@ -13,7 +13,8 @@ export class Stage {
 
   private fog: THREE.FogExp2;
   private background = new THREE.Color(0x000000);
-  private glow = new THREE.Color(0x000000);
+  private glow = new THREE.Color(0x000000); // tono actual de la niebla
+  private glowLevel = 0;
   private dust: THREE.InstancedMesh;
   private dustMat: THREE.MeshBasicMaterial;
   private title: THREE.Mesh | null = null;
@@ -58,11 +59,12 @@ export class Stage {
     this.world.updateMatrixWorld(true);
   }
 
-  // Cada nota de un circuito añade un pulso de color a la niebla.
+  // Cada nota de un circuito da un pulso a la niebla. El tono se desliza
+  // hacia el color de la nota (en vez de sumar colores, que con varios bucles
+  // tendería a gris) y la intensidad se acumula y cae.
   pulseGlow(color: THREE.Color, amount = 1): void {
-    this.glow.r = Math.min(1.5, this.glow.r + color.r * amount);
-    this.glow.g = Math.min(1.5, this.glow.g + color.g * amount);
-    this.glow.b = Math.min(1.5, this.glow.b + color.b * amount);
+    this.glow.lerp(color, 0.5);
+    this.glowLevel = Math.min(1.5, this.glowLevel + amount);
   }
 
   showTitle(text: string, position?: THREE.Vector3, scale = 1): void {
@@ -97,17 +99,11 @@ export class Stage {
   }
 
   update(dt: number, time: number): void {
-    const k = Math.exp(-dt / ATMOSPHERE.glowDecay);
-    this.glow.multiplyScalar(k);
-    const s = ATMOSPHERE.glowStrength;
-    this.background.setRGB(
-      Math.min(1, this.glow.r) * s,
-      Math.min(1, this.glow.g) * s,
-      Math.min(1, this.glow.b) * s,
-    );
+    this.glowLevel *= Math.exp(-dt / ATMOSPHERE.glowDecay);
+    const level = Math.min(1, this.glowLevel);
+    this.background.copy(this.glow).multiplyScalar(level * ATMOSPHERE.glowStrength);
     this.fog.color.copy(this.background);
-    const lum = (this.glow.r + this.glow.g + this.glow.b) / 3;
-    this.dustMat.color.setScalar(ATMOSPHERE.dustBrightness * (1 + 1.5 * Math.min(1, lum)));
+    this.dustMat.color.setScalar(ATMOSPHERE.dustBrightness * (1 + 1.5 * level));
 
     this.dust.rotation.y = time * 0.004;
     this.dust.position.y = Math.sin(time * 0.05) * 0.05;

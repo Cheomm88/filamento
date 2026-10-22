@@ -17,6 +17,17 @@ Oscuridad total. Delante de ti, una sola pieza de neón respira. Al tocarla apar
 
 Cada forma tiene su timbre: esfera = campana, anillo = pluck, tubo = pad, prisma = bajo, punto = percusión suave.
 
+## Componer un tema
+
+Después del primer bucle cerrado, Filamento se convierte en un instrumento para hacer canciones. Todo se revela poco a poco, sin texto:
+
+- **La fuente:** bajo el arco aparece una fila de siluetas apagadas, una por forma. Pellizca una para sacar una pieza nueva; puedes repetir formas (hasta 32 piezas en total). Suelta una pieza sobre la fuente para retirarla.
+- **Guardar un bucle:** agarra un bucle cerrado por su hilo y súbelo. Se encoge mientras sube y, si lo sueltas arriba, queda guardado en miniatura en la **cúpula**, sobre tu cabeza y al alcance del brazo. Sigue sonando y deja libre el área de trabajo para el siguiente bucle (caben 11).
+- **Arreglar:** un pellizco corto sobre un bucle guardado lo silencia o lo reactiva. Así haces estrofa, estribillo y puente activando y desactivando capas.
+- **Editar:** baja un bucle guardado al área de trabajo y recupera su tamaño. Como la altura es la nota, al moverlo arriba o abajo se transpone.
+- **Todo cuadra en compases:** la duración de cada bucle se redondea a medios compases (8 semicorcheas) y empieza en el siguiente medio compás. Cualquier combinación de bucles suena como un tema.
+- **Compartir:** el tema (formas, notas, ritmo, silencios) se guarda en la URL (`#t=…`). En pantalla aparece el botón **Compartir tema**; en VR aparece en la página de entrada al salir. Quien abre el enlace escucha tu tema en VR o en el móvil y puede seguir componiendo.
+
 ## Controles
 
 | Acción | Manos | Mandos |
@@ -24,7 +35,11 @@ Cada forma tiene su timbre: esfera = campana, anillo = pluck, tubo = pad, prisma
 | Despertar la pieza inicial | Tocarla con un dedo o hacer pinch sobre ella | Gatillo sobre ella |
 | Agarrar | Pinch cerca de la pieza (unos 6 cm) | Gatillo |
 | Soltar | Abrir el pinch | Soltar el gatillo |
+| Mover un bucle entero | Pinch sobre su hilo | Gatillo sobre su hilo |
+| Silenciar o reactivar un bucle guardado | Pinch corto sobre él | Clic corto de gatillo |
 | Reset | Juntar las palmas abiertas 1,5 s | Mantener ambos botones de agarre 1,5 s |
+
+El primer reset limpia el área de trabajo y deja sonando los bucles guardados. Un segundo reset borra también el tema.
 
 Toda la acción ocurre a menos de 60 cm de la cabeza y en un giro de menos de 90°.
 
@@ -34,6 +49,7 @@ La misma URL funciona sin casco: **Jugar en pantalla** (o **Empezar**, si el dis
 
 - Las piezas viven en un plano frontal. **Altura en la pantalla = nota**, **distancia = tiempo**, igual que en VR.
 - Arrastra con el dedo (o con el ratón). Se pueden mover dos piezas a la vez.
+- Los bucles guardados viven en dos filas arriba de la pantalla y la fuente en la fila de abajo. Arrastra un bucle por su hilo hacia arriba para guardarlo y toca uno guardado para silenciarlo.
 - **Reset:** mantén dos dedos sobre la pantalla, sin tocar piezas, durante 1,5 s.
 - El espacio de juego se adapta a la pantalla, en vertical o en apaisado: umbral de conexión, velocidad del pulso y franja de notas se reescalan.
 - Leve paralaje con el giroscopio: al inclinar el móvil, la escena se mueve un poco.
@@ -74,11 +90,13 @@ src/
   experience.ts  Orquestación: input → piezas → red → audio y atmósfera; agarrar/soltar, reset
   scene.ts       Renderer, niebla, polvo instanciado, resplandor de la niebla, título
   pieces.ts      Piezas: contornos planos y huecos (trazo de neón, interior negro) mirando al usuario, halo, onda por nota
-  network.ts     Conexiones (grado ≤ 2), pulsos con reloj cuantizado, detección de circuitos
+  network.ts     Conexiones (grado ≤ 2), pulsos con reloj cuantizado, bucles a compás, constelaciones guardadas
   audio.ts       Web Audio: 5 timbres sintetizados, HRTF por pieza, reverb generada, compresor + limitador, drone
   input.ts       Interfaz común de punteros; manos (pinch por distancia entre articulaciones) y mandos; puntas de dedos
   touch.ts       Modo pantalla: cámara y espacio de juego adaptados a la pantalla, toques/ratón, giroscopio
   onboarding.ts  Título → pieza que respira → despliegue en arco
+  dispenser.ts   Fuente de piezas (siluetas para sacar y retirar piezas)
+  song.ts        Tema en la URL: codificar y decodificar los bucles guardados
   fps.ts         Contador de FPS de desarrollo
 ```
 
