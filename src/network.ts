@@ -309,6 +309,18 @@ export class Network {
     }
   }
 
+  // Lanza el patrón de una pieza (tocarla sin moverla), como un pad: suena
+  // una vez y el pulso recorre su cadena. Entra en el siguiente tiempo de
+  // negra para que un toque impreciso caiga a tempo. Dentro de un bucle
+  // cerrado no hace nada: el bucle ya suena solo.
+  launch(id: number, now: number): void {
+    if (this.cycleOfPiece.has(id)) return;
+    const beat = this.step * GRAPH.stepsPerBeat;
+    const tick = Math.ceil((now + 0.03) / beat) * beat;
+    for (const n of this.adj[id] ?? []) this.spawn(id, n, tick);
+    this.onNote(id, tick);
+  }
+
   // ---- Constelaciones -----------------------------------------------------
 
   freeze(cycle: Cycle, slot: number): Constellation {

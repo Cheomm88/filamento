@@ -12,6 +12,7 @@ Oscuridad total. Delante de ti, una sola pieza de neón respira. Al tocarla apar
 - La **altura** de cada pieza es su nota, siempre dentro de la pentatónica menor de La (2 octavas), así que nunca suena disonante.
 - Dos piezas a menos de 35 cm se unen con un **hilo de luz**. Cada pieza se une como máximo a sus 2 vecinas más cercanas.
 - Al soltar una pieza, un **pulso** de luz sale de ella y recorre la cadena. Al llegar a cada pieza, esta suena y destella.
+- **Tocar una pieza sin moverla lanza su patrón**, como un pad: suena una vez en el siguiente tiempo de negra y el pulso recorre su cadena tal como está. Así puedes disparar melodías cuando quieras, a tempo. Agarrar no suena; la nota se oye al cruzar de altura mientras mueves y al soltar.
 - La **distancia es tiempo**: piezas cerca = notas rápidas, lejos = lentas. Los tiempos se ajustan a una rejilla de semicorcheas a 96 BPM, de modo que varios circuitos siempre suenan juntos.
 - **El descubrimiento:** si los hilos forman un bucle cerrado, el pulso sigue dando vueltas para siempre y la oscuridad respira. La niebla se tiñe del color del circuito con cada nota y aparece una capa armónica grave. Ningún texto lo anuncia.
 

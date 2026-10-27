@@ -170,6 +170,8 @@ export class Piece {
   grabbedBy: number | null = null;
   hoverTarget = 0;
   breath = 0; // usado por el onboarding
+  lastPreview = -Infinity; // hora de audio de la última vista previa de altura
+  silentOnce = false; // la próxima nota no suena (ya sonó en la vista previa)
   note = 0;
 
   private hover = 0;

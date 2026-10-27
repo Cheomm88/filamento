@@ -54,6 +54,7 @@ export class Experience {
   private visuals: HandVisuals;
   private flashes: Flash[] = [];
   private loopGrabs = new Map<Pointer, LoopGrab>();
+  private grabStarts = new Map<Pointer, THREE.Vector3>();
   private resetHold = 0;
   private resetLatched = false;
   private started = false;
@@ -101,7 +102,8 @@ export class Experience {
 
     this.network.onNote = (id, time) => {
       const piece = this.pieces[id];
-      if (!piece.muted) this.audio.play(piece.kind, piece.note, time, piece.channel.input);
+      if (piece.silentOnce) piece.silentOnce = false;
+      else if (!piece.muted) this.audio.play(piece.kind, piece.note, time, piece.channel.input);
       const cycle = this.network.cycleOf(id);
       const glow = cycle && !piece.muted ? cycle.color : null;
       this.flashes.push({ piece, time, glow, strength: 1 });
@@ -226,6 +228,7 @@ export class Experience {
         if (note !== p.note) {
           p.note = note;
           this.audio.play(p.kind, note, now, p.channel.input, 0.5);
+          p.lastPreview = now;
           p.triggerFlash(0.5);
         }
         continue;
@@ -257,7 +260,7 @@ export class Experience {
     const p =
       this.nearest(active, h.point, tight) ??
       (this.network.cycleNear(h.point, this.threadRadius(h)) ? null : this.nearest(active, h.point, h.grabRadius));
-    if (p && !p.frozen) return this.grab(h, p, now);
+    if (p && !p.frozen) return this.grab(h, p);
     const cycle = p ? this.network.cycleOf(p.id) : this.network.cycleNear(h.point, this.threadRadius(h));
     if (cycle && !this.isLoopGrabbed(cycle)) return this.grabLoop(h, cycle, now);
     const kind = this.dispenser.kindAt(h.point, h.grabRadius);
@@ -265,7 +268,7 @@ export class Experience {
       const piece = this.spawnPiece(kind, this.dispenser.positionOf(kind));
       if (piece) {
         piece.moved = true;
-        this.grab(h, piece, now);
+        this.grab(h, piece);
       }
     }
   }
@@ -284,14 +287,16 @@ export class Experience {
     return best;
   }
 
-  private grab(h: Pointer, p: Piece, now: number): void {
+  // Agarrar no suena: solo destella. La nota se oye al cruzar a otra altura
+  // mientras se mueve, o al soltar.
+  private grab(h: Pointer, p: Piece): void {
     if (p === this.onboarding.seed) this.onboarding.unfold();
     p.grabbedBy = h.index;
     p.moveTo(p.base, 0); // cancela cualquier animación en curso
     h.grabbed = p;
     h.grabOffset.subVectors(p.base, h.point);
+    this.grabStarts.set(h, p.base.clone());
     p.note = heightToNote(p.base.y, p.note);
-    this.audio.play(p.kind, p.note, now, p.channel.input, 0.6);
     p.triggerFlash(0.7);
   }
 
@@ -304,8 +309,20 @@ export class Experience {
       this.removePieces([p], now);
       return;
     }
+    // Tocar sin mover = lanzar su patrón tal como está, a tempo. No se
+    // recalculan conexiones porque no ha cambiado nada.
+    const start = this.grabStarts.get(h);
+    this.grabStarts.delete(h);
+    if (start && start.distanceTo(p.base) < SONG.tapMaxMove * this.space.scale) {
+      p.base.copy(start);
+      this.network.launch(p.id, now);
+      return;
+    }
     p.moved = true;
+    // Si su nota acaba de sonar como vista previa, al soltar no se repite.
+    p.silentOnce = now - p.lastPreview < 0.3;
     this.network.commit(p.id, now);
+    p.silentOnce = false;
     this.afterCommit();
   }
 
